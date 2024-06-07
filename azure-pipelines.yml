@@ -1,0 +1,81 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger: #trigger the branch
+- master
+
+pool: default
+  #vmImage: ubuntu-latest
+#we are deifnining execution steps 
+stages:
+  - stage: tfvalidate
+    jobs:
+      - job: validate 
+        steps: 
+          - task: CmdLine@2
+            displayName: unzip package installation
+            inputs:
+              script: 'sudo apt install unzip'
+          - task: TerraformInstaller@1
+            displayName: Install Terrafrom
+            inputs:
+              terraformVersion: 'latest'
+          - task: TerraformTaskV4@4
+            displayName: initillazing
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              backendServiceArm: 'ado'
+              backendAzureRmResourceGroupName: 'terraformstorage'
+              backendAzureRmStorageAccountName: 'terraformstorage83'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'tfstate'
+          - task: TerraformTaskV4@4
+            displayName: Validate
+            inputs:
+              provider: 'azurerm'
+              command: 'validate'
+          - task: TerraformTaskV4@4
+            displayName: Plan
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              environmentServiceNameAzureRM: 'ado'
+  - stage: tfapproval
+    jobs:
+      - job : approval
+        pool: server
+        timeoutInMinutes: 1
+        steps:
+          - task: ManualValidation@1
+            inputs:
+              notifyUsers: 'arvrampure@gmail.com'
+              instructions: 'please approve it'
+  - stage: tfapply 
+    jobs:
+      - job: apply 
+        pool: default
+        steps:
+        - task: TerraformInstaller@1
+          inputs:
+            terraformVersion: 'latest'
+        - task: TerraformTaskV4@4
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: 'ado'
+            backendAzureRmResourceGroupName: 'terraformstorage'
+            backendAzureRmStorageAccountName: 'terraformstorage83'
+            backendAzureRmContainerName: 'tfstate'
+            backendAzureRmKey: 'tfstate'
+        - task: TerraformTaskV4@4
+          displayName: applying congiuration
+          inputs:
+            provider: 'azurerm'
+            command: 'apply'
+            environmentServiceNameAzureRM: 'ado'
+          
+          
+          
